@@ -1,8 +1,8 @@
 import os
 import json
 
-from retro_bowl_fantasy_stats import *
-from rb_io_handling import *
+from rb_data_storage import *
+from rb_terminal import *
 
 ################################ Data saving/loading ###############################
 def encode(obj):
