@@ -5,7 +5,7 @@ This repository contains three files:
 
 Use tips:
   1. Make sure to have all files in the same folder/directory: main.py depends on the rb_terminal.py, which itself relies on all the structures in the rb_data_storage.
-  2. Always exit the terminal properly by entering "E". This may require you to navigate to a menu where "E" is a valid input.
+  2. Always exit the terminal properly from either the main menu or player hub.
   3. If the terminal is not exited properly, ALL UNSAVED DATA WILL BE LOST. Saving occurs only after a successful terminal close.
   4. The terminal is broadly tolerant of invalid inputs, and will re-prompt if invalid input is received.
 
