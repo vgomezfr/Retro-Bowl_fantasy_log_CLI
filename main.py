@@ -1,7 +1,6 @@
 import os
 import json
 
-from rb_data_storage import *
 from rb_terminal import *
 
 ################################ Data saving/loading ###############################
