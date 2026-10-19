@@ -1,8 +1,4 @@
-import json
-import os
 import matplotlib.pyplot as plt
-
-DATA_STORAGE_FILE = "retro_bowl_data.json"
 
 ################################ GAME STATS AND SUBCLASSES ###############################
 class Player_Game:
@@ -100,7 +96,7 @@ class Runningback_Game(Player_Game):
         
 
     def calculate_fpts(self):
-        return self.calculate_rushing_fpts() + self.calculate_receiving_fpts() - (2 * self.fum)
+        return round(self.calculate_rushing_fpts() + self.calculate_receiving_fpts() - (2 * self.fum), ndigits=2)
 
     def to_dict(self):
         return {
@@ -222,6 +218,12 @@ class Player:
     def _add_season(self):
         self.career_stats.append(Player_Season())
 
+    def retire(self):
+        self.retired = True
+
+    def unretire(self):
+        self.retired = False
+    
     def _fetch_season(self, season: int) -> Player_Season:
         if not (season == -1 or 1 <= season <= len(self.career_stats)):
             raise KeyError("Season invalid. \n")
@@ -244,6 +246,13 @@ class Player:
                 else:
                     return season.ps_games[week]
 
+    def has_game_logged(self, season, week) -> bool:
+        try:
+            _ = self._fetch_game(season, week)
+            return True
+        except:
+            return False
+    
     def delete_game(self, season, week):
         if type(season) == int:
             season = self._fetch_season(season)
@@ -620,10 +629,10 @@ class Receiver(Player):
         
         if type(week) == int: # Regular season game
             if (season.reg_season_games[week - 1] is not None):
-                raise KeyError("Game is already present. Use edit_game() to overwrite.")
+                raise Exception("Game is already present. Use edit_game() to overwrite.")
             season.reg_season_games[week - 1] = game
             season.num_reg_season_games += 1
-        
+
         elif type(week) == str: # Post-season game
             season.ps_games[week] = game
             season.num_ps_games += 1
@@ -643,281 +652,10 @@ class Receiver(Player):
 
         out_lines = [
             week_line,
-            f"{game.rec} receptions",
-            f"{game.rec_yds} receiving yards",
-            f"{game.rec_avg} yards per reception",
-            tds_line,
-            f"Longest reception: {game.rec_lng} yards",
+            f"{game.rec} receptions for {game.rec_yds} receiving yards and {tds_line}",
+            f"{game.rec_avg} yards per reception with a longest reception of {game.rec_lng} yards",
             f"Fantasy points: {game.fpts}",
         ]
         output = "\n".join(out_lines)
 
         print(output)
-
-################################ Data saving, loading, I/O ###############################
-def encode(obj):
-    if hasattr(obj, "to_dict"):
-        return obj.to_dict()
-    else:
-        raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
-
-def decode(data_dict):
-    if data_dict.get("__type__") == "Receiver":
-        return Receiver.from_dict(data_dict)
-    elif data_dict.get("__type__") == "Runningback":
-        return Runningback.from_dict(data_dict)
-    elif data_dict.get("__type__") == "Quarterback":
-            return Quarterback.from_dict(data_dict)
-    elif data_dict.get("__type__") == "Player_Season":
-        return Player_Season.from_dict(data_dict)
-    elif data_dict.get("__type__") == "Receiver_Game":
-        return Receiver_Game.from_dict(data_dict)
-    elif data_dict.get("__type__") == "Runningback_Game":
-        return Runningback_Game.from_dict(data_dict)
-    elif data_dict.get("__type__") == "Quarterback_Game":
-            return Quarterback_Game.from_dict(data_dict)
-    else:
-        return data_dict
-
-def load_data() -> dict[str: Player]:
-    if os.path.exists(DATA_STORAGE_FILE):
-        with open(DATA_STORAGE_FILE, "r") as f:
-            return json.load(f, object_hook=decode)
-    else:
-        # TODO: Make default return for whatever data is being stored/loaded
-        return dict()
-
-def save_data(player_dict):
-    with open(DATA_STORAGE_FILE, "w") as f:
-        json.dump(player_dict, f, default=encode)
-
-################################ Terminal-interaction / Interface level functions ###############################
-def display_known_players(players: dict[Player]):
-    active_players = []
-    retired_players = []
-    for player_name, player in zip(players.keys(), players.values()):
-        if is_retired(player):
-            retired_players.append(player_name)
-        else:
-            active_players.append(player_name)
-
-    print("Active players:", active_players)
-    print("Retired players:", retired_players)
-
-def create_player(players: dict[Player], player_name: str) -> None:
-    # Adds a Receiver with the inputted data to the player dictionary
-    position = input("Create new player. Position? \n")
-
-    if position == "WR" or position == "TE":
-        players[player_name] = Receiver(player_name, position)
-    elif position == "RB":
-        players[player_name] = Runningback(player_name, position)
-    elif position == "QB":
-        players[player_name] = Quarterback(player_name, position)
-    
-    print(f"Player {player_name} added to registry.")
-
-def delete_player(players: dict[Player], player: Player) -> None:
-    players.pop(player.name)
-
-def is_retired(player: Player):
-    return player.retired
-
-def unretire_player(player: Player):
-    player.retired = False
-
-def retire_player(players: dict[Player], player) -> None:
-    player.retired = True
-
-def log_game(player: Player):
-    if player.retired == True:
-        print("Cannot log new games for retired players. \n")
-        return
-    
-    valid_ps_game_inputs = {"wc": "WC",
-                            "WC": "WC",
-                            "wild card": "WC",
-                            "Wild card": "WC",
-                            "Wild Card": "WC",
-                            "wildcard": "WC",
-                            "Wildcard": "WC",
-                            "division": "D",
-                            "Division": "D",
-                            "divisional": "D", 
-                            "Divisional": "D",
-                            "conference": "C",
-                            "Conference": "C",
-                            "conference championship": "C",
-                            "Conference championship": "C",
-                            "Conference Championship": "C",
-                            "NFC": "C",
-                            "AFC": "C",
-                            "super bowl": "SB",
-                            "Super bowl": "SB",
-                            "Super Bowl": "SB",
-                            "superbowl": "SB",
-                            "Superbowl": "SB",
-                            "sb": "SB",
-                            "SB": "SB"}
-
-    valid_week_inputs = set([str(v) for v in list(range(1, 19))]).union(set(valid_ps_game_inputs))
-
-    season = int(input("Enter season number or -1 to add to current season. \n"))
-    while not (-1 <= season <= 20):
-        season = int(input("Enter a season number (1-20), or enter [-1] to add to current season. \n"))
-
-    week = input("Week? \n")
-    while week not in valid_week_inputs:
-        week = input("Enter a number 1-18 for regular season game or playoff round for postseason game. \n")
-
-    if week in valid_ps_game_inputs:
-        week = valid_ps_game_inputs[week]
-    else:
-        week = int(week)
-
-    opponent = input("Opponent? \n")
-
-    # Get input for appropriate game stats
-
-    if player.position == "QB":
-       cmp = int(input("Passes completed? \n"))
-       att = int(input("Passes attempted? \n"))
-       pass_yds = int(input("Passing yards? \n"))
-       pass_tds = int(input("Passing touchdowns? \n"))
-       pass_lng = int(input("Longest passing play? \n"))
-       ints = int(input("Interceptions? \n"))
-       sacks = int(input("Sacks? \n"))
-       
-
-    if player.position == "QB" or player.position == "RB":
-        # Input rushing stats
-        carries = int(input("Carries? \n"))
-        rush_yds = int(input("Rushing yards? \n"))
-        rush_tds = int(input("Rushing touchdowns? \n"))
-        rush_lng = int(input("Longest rush? \n"))
-
-    if player.position == "RB" or player.position == "WR" or player.position == "TE":
-        # Input passing stats
-        rec = int(input("Receptions? \n"))
-        rec_yds = int(input("Receiving yards? \n"))
-        rec_tds = int(input("Receiving touchdowns? \n"))
-        rec_lng = int(input("Longest reception? \n"))
-
-    fum = int(input("Fumbles? \n"))
-
-    # Pack all relevant game stats into a tuple and pass that argument tuple into player.add_game()
-    if player.position == "QB":
-        game_stats = (cmp, att, pass_yds, pass_tds, pass_lng, ints, sacks, carries, rush_yds, rush_tds, rush_lng, fum)
-    elif player.position == "RB":
-        game_stats = (carries, rush_yds, rush_tds, rush_lng, rec, rec_yds, rec_tds, rec_lng, fum)
-    else:
-        game_stats = (rec, rec_yds, rec_tds, rec_lng, fum)
-    
-    try:
-        player.add_game(week, opponent, *game_stats, season)
-        print("Game added. \n")
-    except:
-        print("Add game failed. \n")
-
-def delete_game(player: Player):
-    valid_ps_game_inputs = {"wc": "WC",
-                            "WC": "WC",
-                            "wild card": "WC",
-                            "Wild card": "WC",
-                            "Wild Card": "WC",
-                            "wildcard": "WC",
-                            "Wildcard": "WC",
-                            "division": "D",
-                            "Division": "D",
-                            "divisional": "D", 
-                            "Divisional": "D",
-                            "conference": "C",
-                            "Conference": "C",
-                            "conference championship": "C",
-                            "Conference championship": "C",
-                            "Conference Championship": "C",
-                            "NFC": "C",
-                            "AFC": "C",
-                            "super bowl": "SB",
-                            "Super bowl": "SB",
-                            "Super Bowl": "SB",
-                            "superbowl": "SB",
-                            "Superbowl": "SB",
-                            "sb": "SB",
-                            "SB": "SB"}
-    
-    valid_week_inputs = set([str(v) for v in list(range(1, 19))]).union(set(valid_ps_game_inputs))
-
-    season = int(input("Enter season number or -1 to add to current season. \n"))
-    while not (-1 <= season <= 20):
-        season = int(input("Enter a season number (1-20), or enter [-1] to add to current season. \n"))
-
-    week = input("Week? \n")
-    while week not in valid_week_inputs:
-        week = input("Enter a number 1-18 for regular season game or playoff round for postseason game. \n")
-
-    if week in valid_ps_game_inputs:
-        week = valid_ps_game_inputs[week]
-    else:
-        week = int(week)
-
-    try:
-        player.delete_game(season, week)
-        print("Game deleted. \n")
-    except:
-        print("Delete game failed. \n")
-
-def display_game(player: Player):
-    valid_ps_game_inputs = {"wc": "WC",
-                                "WC": "WC",
-                                "wild card": "WC",
-                                "Wild card": "WC",
-                                "Wild Card": "WC",
-                                "wildcard": "WC",
-                                "Wildcard": "WC",
-                                "division": "D",
-                                "Division": "D",
-                                "divisional": "D", 
-                                "Divisional": "D",
-                                "conference": "C",
-                                "Conference": "C",
-                                "conference championship": "C",
-                                "Conference championship": "C",
-                                "Conference Championship": "C",
-                                "NFC": "C",
-                                "AFC": "C",
-                                "super bowl": "SB",
-                                "Super bowl": "SB",
-                                "Super Bowl": "SB",
-                                "superbowl": "SB",
-                                "Superbowl": "SB",
-                                "sb": "SB",
-                                "SB": "SB"}
-    valid_week_inputs = set([str(v) for v in list(range(1, 19))]).union(set(valid_ps_game_inputs))
-
-    season = int(input("Enter season number or -1 to add to current season. \n"))
-    while not (-1 <= season <= 20):
-        season = int(input("Enter a season number (1-20), or enter [-1] to add to current season. \n"))
-
-    week = input("Week? \n")
-    while week not in valid_week_inputs:
-        week = input("Enter a number 1-18 for regular season game or playoff round for postseason game. \n")
-
-    if week in valid_ps_game_inputs:
-        week = valid_ps_game_inputs[week]
-    else:
-        week = int(week)
-
-    try:
-        player.display_game_stats(season, week)
-    except:
-        print("Error: Season/game invalid. \n")
-
-def display_season(player: Player):
-    season = int(input("Season? \n"))
-    include_ps = True if input("Include postseason? [Y]/[N] \n") == "Y" else False
-
-    try:
-        player.display_season_stats(season, include_ps)
-    except:
-        print("An error occurred. Try not including postseason if the player did not play any games that postseason. \n")
