@@ -302,4 +302,7 @@ class Terminal:
 
         include_ps = self.request_confirmation("Include postseason?")
 
-        self.current_player.display_season_stats(season, include_ps)        
+        self.current_player.display_season_stats(season, include_ps)     
+
+    def exit(self):
+        pass   
