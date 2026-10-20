@@ -9,4 +9,7 @@ Use tips:
   3. If the terminal is not exited properly, ALL UNSAVED DATA WILL BE LOST. Saving occurs only after a successful terminal close.
   4. The terminal is broadly tolerant of invalid inputs, and will re-prompt if invalid input is received.
 
+Package dependencies:
+matplotlib
+
 Enjoy chronicling and remembering your favorite players!
